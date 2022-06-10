@@ -1,9 +1,11 @@
 package gui;
 
 import java.net.URL;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
 
 import db.DbException;
 import gui.listeners.DataChangeListener;
@@ -18,13 +20,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import model.entities.Department;
+import model.exceptions.ValidationException;
 import model.services.DepartmentService;
 
 public class DepartmentFormController implements Initializable {
 
-	//lista de objetos do tipo DataChangeListener
+	// lista de objetos do tipo DataChangeListener
 	private List<DataChangeListener> dataChangeListenersList = new ArrayList<DataChangeListener>();
-	
+
 	// dependencia para o departamento
 	private Department entity;
 
@@ -52,8 +55,9 @@ public class DepartmentFormController implements Initializable {
 	public void setDepartmentService(DepartmentService service) {
 		this.service = service;
 	}
-	
-	//metodo para permitir que outros objetos se inscrevam na lista e receberem o evento
+
+	// metodo para permitir que outros objetos se inscrevam na lista e receberem o
+	// evento
 	public void subscribeDataChangeListener(DataChangeListener listener) {
 		dataChangeListenersList.add(listener);
 	}
@@ -73,12 +77,16 @@ public class DepartmentFormController implements Initializable {
 
 			// salvo no banco de dados
 			service.saveOrUpdate(entity);
-			
+
 			notifyDataChangeListeners();
-			
+
 			// fecha janela
 			Utils.currentStage(event).close();
-		} catch (DbException e) {
+		} 
+		catch (ValidationException e) {
+			setErrorMessages(e.getErrors());
+		}
+		catch (DbException e) {
 			Alerts.showAlert("Error saving object", null, e.getMessage(), AlertType.ERROR);
 		}
 
@@ -87,7 +95,7 @@ public class DepartmentFormController implements Initializable {
 	private void notifyDataChangeListeners() {
 		for (DataChangeListener dataChangeListener : dataChangeListenersList) {
 			dataChangeListener.onDataChanged();
-		}		
+		}
 	}
 
 	// responsável por pegar os dados das caixinhas do form e instanciar um
@@ -95,9 +103,18 @@ public class DepartmentFormController implements Initializable {
 	private Department getFormData() {
 		Department obj = new Department();
 
+		ValidationException exception = new ValidationException("Validation Error");
+
 		obj.setId(Utils.tryParseToInt(txtId.getText()));
+
+		if (txtName.getText() == null || txtName.getText().trim().equals("")) {
+			exception.addError("name", "Campo não pode ser vazio.");
+		}
 		obj.setName(txtName.getText());
 
+		if (exception.getErrors().size() > 0) {
+			throw exception;
+		}
 		return obj;
 	}
 
@@ -126,4 +143,21 @@ public class DepartmentFormController implements Initializable {
 		txtName.setText(String.valueOf(entity.getName()));
 	}
 
+	private void setErrorMessages(Map<String, String> errors) {
+		
+		Set<String> fields = errors.keySet();
+		
+		if(fields.contains("name")) {
+			labelErrorName.setText(errors.get("name"));
+		}
+	}
 }
+
+
+
+
+
+
+
+
+
